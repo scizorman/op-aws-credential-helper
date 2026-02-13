@@ -17,7 +17,12 @@
       treefmt-nix,
     }:
     let
-      forAllSystems = nixpkgs.lib.genAttrs nixpkgs.lib.systems.flakeExposed;
+      forAllSystems = nixpkgs.lib.genAttrs [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
       treefmtEval = forAllSystems (
         system:
         treefmt-nix.lib.evalModule nixpkgs.legacyPackages.${system} {
