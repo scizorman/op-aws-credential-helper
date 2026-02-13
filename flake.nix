@@ -53,6 +53,7 @@
 
       checks = forAllSystems (system: {
         formatting = treefmtEval.${system}.config.build.check self;
+        package = self.packages.${system}.default;
       });
 
       formatter = forAllSystems (system: treefmtEval.${system}.config.build.wrapper);
