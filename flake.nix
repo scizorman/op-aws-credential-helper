@@ -37,7 +37,7 @@
           pname = "op-aws-credential-helper";
           version = "0.1.0";
           src = ./.;
-          vendorHash = "sha256-LE10n2/C51rJA3Mw1meZWFyXogAhmQwbzDfs0cudFwg=";
+          vendorHash = "sha256-UF0NkoWKLoODdcq+mwgcFatEaLeF+ee+wa+/dwot2RM=";
         };
       });
 
