@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto/sha1"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/alecthomas/kong"
@@ -45,6 +47,11 @@ func main() {
 
 func run() error {
 	ctx := context.Background()
+
+	cached, err := readCache(cli.Profile)
+	if err == nil && time.Now().Add(5*time.Minute).Before(*cached.Expiration) {
+		return json.NewEncoder(os.Stdout).Encode(cached)
+	}
 
 	cfg, err := config.LoadSharedConfigProfile(ctx, cli.Profile)
 	if err != nil {
@@ -89,7 +96,56 @@ func run() error {
 		SessionToken:    aws.ToString(out.Credentials.SessionToken),
 		Expiration:      out.Credentials.Expiration,
 	}
+	if err := writeCache(cli.Profile, resp); err != nil {
+		return err
+	}
+
 	return json.NewEncoder(os.Stdout).Encode(resp)
+}
+
+func cachePath(profile string) (string, error) {
+	cacheDir := os.Getenv("XDG_CACHE_HOME")
+	if cacheDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		cacheDir = filepath.Join(home, ".cache")
+	}
+	hash := sha1.Sum([]byte(profile))
+	n := fmt.Sprintf("%x.json", hash)
+	return filepath.Join(cacheDir, "op-aws-credential-helper", n), nil
+}
+
+func readCache(profile string) (processcreds.CredentialProcessResponse, error) {
+	path, err := cachePath(profile)
+	if err != nil {
+		return processcreds.CredentialProcessResponse{}, err
+	}
+	d, err := os.ReadFile(path)
+	if err != nil {
+		return processcreds.CredentialProcessResponse{}, err
+	}
+	var resp processcreds.CredentialProcessResponse
+	if err := json.Unmarshal(d, &resp); err != nil {
+		return processcreds.CredentialProcessResponse{}, err
+	}
+	return resp, nil
+}
+
+func writeCache(profile string, resp processcreds.CredentialProcessResponse) error {
+	path, err := cachePath(profile)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return err
+	}
+	d, err := json.Marshal(resp)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, d, 0600)
 }
 
 type GetSessionTokenAPIClient interface {
