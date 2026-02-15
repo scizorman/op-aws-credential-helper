@@ -9,7 +9,7 @@ Temporary credentials are cached per profile and reused until expiration.
 ## Requirements
 
 - **Unix-like OS** (Linux, macOS) — Uses `/dev/tty` for MFA input
-- **1Password CLI (`op`)** — Used to retrieve credentials
+- **1Password CLI (`op`) v2** — Used to retrieve credentials
 - **AWS Account** — Requires an IAM user with an MFA device
 
 ## Installation
@@ -32,10 +32,17 @@ go install github.com/scizorman/op-aws-credential-process@latest
 
 ### 1Password
 
+#### Setting up the op CLI
+
+If desktop app integration is enabled, the `op` CLI will unlock via biometric authentication automatically, requiring no manual sign-in.
+If integration is disabled, you must sign in manually with `eval $(op signin)`.
+
+#### Storing AWS credentials
+
 Store your AWS credentials in 1Password.
 
-By default, the tool expects the Access Key ID in the `username` field and the Secret Access Key in the `credential` field.
-Field names can be customized via command-line options.
+By default, the tool expects the Access Key ID in the `Access key ID` field and the Secret Access Key in the `Secret access key` field.
+Field names can be customized via `--op-access-key-id-field` and `--op-secret-access-key-field` flags.
 
 ### AWS CLI
 
@@ -64,6 +71,29 @@ credential_process = op-aws-credential-process --op-vault <vault> --op-item <ite
 
 This allows you to leverage Windows Hello biometric authentication from WSL.
 
+#### Cross-account access with AssumeRole
+
+Currently, this tool performs `GetSessionToken` to obtain MFA-authenticated temporary credentials.
+For cross-account access, combine this with AWS CLI's `source_profile` and `role_arn` settings.
+
+**Example configuration**:
+
+```ini
+# Base profile using credential_process
+[profile base]
+region = ap-northeast-1
+mfa_serial = arn:aws:iam::111111111111:mfa/user
+credential_process = op-aws-credential-process --op-vault <vault> --op-item <item>
+
+# Cross-account profile using AssumeRole
+[profile cross-account]
+region = ap-northeast-1
+source_profile = base
+role_arn = arn:aws:iam::222222222222:role/CrossAccountRole
+```
+
+The AWS CLI will first retrieve temporary credentials from the `base` profile, then use them to assume the role specified in `role_arn`.
+
 ## Usage
 
 ### CLI Options
@@ -74,27 +104,13 @@ This allows you to leverage Windows Hello biometric authentication from WSL.
 | `--duration` | `12h` | No | STS session duration |
 | `--op-vault` | - | Yes | 1Password vault name |
 | `--op-item` | - | Yes | 1Password item name |
-| `--op-access-key-id-field` | `username` | No | Field name for Access Key ID |
-| `--op-secret-access-key-field` | `credential` | No | Field name for Secret Access Key |
+| `--op-access-key-id-field` | `Access key ID` | No | Field name for Access Key ID |
+| `--op-secret-access-key-field` | `Secret access key` | No | Field name for Secret Access Key |
 | `--op-cli-path` | `op` | No | Path to 1Password CLI |
-
-## How it works
-
-1. Load region and mfa_serial from `~/.aws/config`
-2. Retrieve IAM access keys using 1Password CLI (`op item get`)
-3. Prompt for MFA code via `/dev/tty`
-4. Obtain temporary credentials via STS `GetSessionToken`
-5. Cache temporary credentials and output credential_process JSON to stdout
 
 ### Cache
 
-Temporary credentials are cached per profile.
-
-- **Cache location**: `$XDG_CACHE_HOME/op-aws-credential-process/<profile>.json` (defaults to `~/.cache/op-aws-credential-process/<profile>.json`)
-- **Cache granularity**: One file per profile
-- **Cache invalidation**:
-  - When configuration parameters (vault, item, mfa_serial, field names) change
-  - 5 minutes before expiration
+Temporary credentials are cached at `$XDG_CACHE_HOME/op-aws-credential-process/<profile>.json` (defaults to `~/.cache/op-aws-credential-process/<profile>.json`).
 
 ## Comparison
 
@@ -105,8 +121,6 @@ Temporary credentials are cached per profile.
 | Tool Support | All credential_process tools | Plugin-supported commands only | All credential_process tools |
 | MFA Token | Interactive prompt / mfa_process | 1Password TOTP auto-retrieval | Interactive input via /dev/tty |
 | External Dependencies | None (single binary) | 1Password Desktop App | op CLI |
-
-This tool provides `credential_process` support for credentials stored in 1Password, making them available to all AWS SDK-compatible tools.
 
 ## License
 
