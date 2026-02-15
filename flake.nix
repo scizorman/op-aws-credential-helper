@@ -36,6 +36,8 @@
         default = nixpkgs.legacyPackages.${system}.mkShell {
           packages = with nixpkgs.legacyPackages.${system}; [
             go
+            gopls
+            delve
             golangci-lint
             goreleaser
             nixfmt
