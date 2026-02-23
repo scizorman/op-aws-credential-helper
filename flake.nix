@@ -21,7 +21,7 @@
       packages = forAllSystems (system: {
         default = nixpkgs.legacyPackages.${system}.buildGoModule rec {
           pname = "op-aws-credential-process";
-          version = "0.1.0";
+          version = "0.1.1";
           src = ./.;
           vendorHash = "sha256-UF0NkoWKLoODdcq+mwgcFatEaLeF+ee+wa+/dwot2RM=";
           ldflags = [
