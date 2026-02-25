@@ -35,7 +35,7 @@
       devShells = forAllSystems (system: {
         default = nixpkgs.legacyPackages.${system}.mkShell {
           packages = with nixpkgs.legacyPackages.${system}; [
-            go
+            go_1_26
             gopls
             delve
             golangci-lint

@@ -25,8 +25,7 @@ func (s *opCLICredentialSource) Retrieve(ctx context.Context) (aws.Credentials, 
 	)
 	out, err := cmd.Output()
 	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			return aws.Credentials{}, fmt.Errorf("failed to get op item: %w\n%s", err, exitErr.Stderr)
 		}
 		return aws.Credentials{}, err
