@@ -1,6 +1,6 @@
 module github.com/scizorman/op-aws-credential-process
 
-go 1.26
+go 1.25
 
 require (
 	github.com/alecthomas/kong v1.14.0
