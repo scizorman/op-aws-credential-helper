@@ -94,6 +94,27 @@ role_arn = arn:aws:iam::222222222222:role/CrossAccountRole
 
 The AWS CLI will first retrieve temporary credentials from the `base` profile, then use them to assume the role specified in `role_arn`.
 
+#### External MFA token provider
+
+By default, this tool prompts for the MFA code interactively via `/dev/tty`.
+With `--mfa-process`, you can instead retrieve the code from an external command, such as `ykman` for a YubiKey:
+
+```ini
+[profile example]
+region = ap-northeast-1
+mfa_serial = arn:aws:iam::123456789012:mfa/user
+credential_process = op-aws-credential-process --op-vault <vault> --op-item <item> --mfa-process "ykman oath accounts code --single <issuer>"
+```
+
+The command is run via `/bin/sh -c`, and must write only the MFA token to stdout.
+Leading/trailing whitespace and a trailing newline are ignored, but any other whitespace in the output is treated as invalid.
+A non-zero exit status is treated as a failure.
+The command's stderr is passed through to the terminal, so prompts such as a YubiKey touch request are still visible.
+
+**Security note**: avoid using a TOTP stored in the same 1Password item as the AWS credentials, e.g. `--mfa-process "op item get ... --otp"`.
+Doing so collapses MFA into a single factor, since anyone who can read the IAM credentials from 1Password can also read the TOTP.
+MFA is only effective when the token comes from a separate device, such as a YubiKey.
+
 ## Usage
 
 ### CLI Options
@@ -107,6 +128,7 @@ The AWS CLI will first retrieve temporary credentials from the `base` profile, t
 | `--op-access-key-id-field` | `Access key ID` | No | Field name for Access Key ID |
 | `--op-secret-access-key-field` | `Secret access key` | No | Field name for Secret Access Key |
 | `--op-cli-path` | `op` | No | Path to 1Password CLI |
+| `--mfa-process` | - | No | Shell command to obtain an MFA code instead of prompting on /dev/tty |
 
 ### Cache
 
@@ -119,7 +141,7 @@ Temporary credentials are cached at `$XDG_CACHE_HOME/op-aws-credential-process/<
 | Credential Storage | OS keystore | 1Password | 1Password |
 | Injection Method | credential_process / env vars | env vars | credential_process |
 | Tool Support | All credential_process tools | Plugin-supported commands only | All credential_process tools |
-| MFA Token | Interactive prompt / mfa_process | 1Password TOTP auto-retrieval | Interactive input via /dev/tty |
+| MFA Token | Interactive prompt / mfa_process | 1Password TOTP auto-retrieval | Interactive prompt via /dev/tty / --mfa-process |
 | External Dependencies | None (single binary) | 1Password Desktop App | op CLI |
 
 ## License

@@ -25,6 +25,7 @@ var cli struct {
 	OpAccessKeyIDField     string           `default:"Access key ID" help:"1Password field name for access key ID." name:"op-access-key-id-field"`
 	OpSecretAccessKeyField string           `default:"Secret access key" help:"1Password field name for secret access key." name:"op-secret-access-key-field"`
 	OpCLIPath              string           `default:"op" help:"Path to 1Password CLI." name:"op-cli-path"`
+	MfaProcess             string           `help:"Shell command to obtain an MFA code instead of prompting on /dev/tty." name:"mfa-process"`
 	Version                kong.VersionFlag `help:"Show version."`
 }
 
@@ -78,10 +79,15 @@ func run() error {
 		return err
 	}
 
+	var otpSource OTPSource = &ttyOTPSource{}
+	if cli.MfaProcess != "" {
+		otpSource = &commandOTPSource{command: cli.MfaProcess}
+	}
+
 	source := &CachedSessionProvider{
 		SessionProvider: &SessionTokenProvider{
 			BaseCredsProvider: cachedCreds,
-			OTPSource:         &ttyOTPSource{},
+			OTPSource:         otpSource,
 			StsClient:         stsClient,
 			MfaSerial:         cfg.MFASerial,
 			Duration:          cli.Duration,
